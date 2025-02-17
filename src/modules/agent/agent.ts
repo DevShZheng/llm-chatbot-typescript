@@ -30,5 +30,40 @@ export default async function initAgent(
   // const rephraseQuestionChain = ...
   // TODO: Return a runnable passthrough
   // return ...
+
+  const tools = await initTools(llm, embeddings, graph);
+  const prompt = await pull<ChatPromptTemplate>(
+    "hwchase17/openai-functions-agent"
+  );
+
+  const agent = await createOpenAIFunctionsAgent({
+    llm,
+    tools,
+    prompt,
+  });
+
+  const executor = new AgentExecutor({
+    agent,
+    tools,
+    verbose: true, // Verbose output logs the agents _thinking_
+  });
+
+  const rephraseQuestionChain = await initRephraseChain(llm);
+
+  return RunnablePassthrough.assign<{ input: string; sessionId: string }, any>({
+    // Get Message History
+    history: async (_input, options) => {
+      const history = await getHistory(options?.config.configurable.sessionId);
+
+      return history;
+    },
+  })
+    .assign({
+      // Use History to rephrase the question
+      rephrasedQuestion: (input: RephraseQuestionInput, config: any) =>
+        rephraseQuestionChain.invoke(input, config),
+    }) // Pass to the executor
+    .pipe(executor)
+    .pick("output");
 }
 // end::function[]

@@ -45,5 +45,39 @@ export default async function initVectorRetrievalChain(
   // const answerChain = ...
   // TODO: Return chain
   // return RunnablePassthrough.assign( ... )
+
+  // remember to add await function for all async functions
+  const vectorStore = await initVectorStore(embeddings);
+  const vectorStoreRetriever = vectorStore.asRetriever(5);
+  const answerChain = initGenerateAnswerChain(llm);
+
+  return RunnablePassthrough.assign({
+    documents: new RunnablePick("rephrasedQuestion").pipe(vectorStoreRetriever),
+  })
+    .assign({
+      // Extract the IDs
+      ids: new RunnablePick("documents").pipe(extractDocumentIds),
+      // convert documents to string
+      context: new RunnablePick("documents").pipe(docsToJson),
+    })
+    .assign({
+      output: (input: RetrievalChainThroughput) =>
+        answerChain.invoke({
+          question: input.rephrasedQuestion,
+          context: input.context,
+        }),
+    })
+    .assign({
+      responseId: async (input: RetrievalChainThroughput, options) =>
+        saveHistory(
+          options?.config.configurable.sessionId,
+          "vector",
+          input.input,
+          input.rephrasedQuestion,
+          input.output,
+          input.ids
+        ),
+    })
+    .pick("output");
 }
 // end::function[]

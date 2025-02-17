@@ -53,7 +53,7 @@ describe("Cypher Evaluation Chain", () => {
     let found = false;
 
     for (const error of errors) {
-      if (error.includes("label Muvee does not exist")) {
+      if (error.includes("Label 'Muvee' does not exist")) {
         found = true;
       }
     }
@@ -68,7 +68,7 @@ describe("Cypher Evaluation Chain", () => {
         'MATCH (m:Muvee)-[:ACTS_IN]->(a:Person) WHERE m.name = "The Matrix" RETURN a.name AS actor',
       schema: graph.getSchema(),
       errors: [
-        "Label Muvee does not exist",
+        "Label 'Muvee' does not exist",
         "Relationship type ACTS_IN does not exist",
       ],
     };
